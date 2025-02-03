@@ -168,6 +168,7 @@ const Main: FC = () => {
         setPhotosResponse((prev) => ({
           results: [...prev.results, ...photosWithStats],
         }));
+        saveToHistory(searchQuery);
       }
     } catch (err) {
       console.error("API request failed:", err);
@@ -190,6 +191,14 @@ const Main: FC = () => {
       }));
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const saveToHistory = (searchTerm: string) => {
+    const history = JSON.parse(localStorage.getItem("searchHistory") || "[]");
+    if (!history.includes(searchTerm)) {
+      const updatedHistory = [searchTerm, ...history].slice(0, 5);
+      localStorage.setItem("searchHistory", JSON.stringify(updatedHistory));
     }
   };
 
