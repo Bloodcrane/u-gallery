@@ -1,12 +1,10 @@
-import React, { FC, Fragment, useEffect, useState } from "react";
-import { createRoot } from "react-dom/client";
+import React, { FC, useEffect, useState, useRef } from "react";
 import { createApi } from "unsplash-js";
+import { useNavigate, useLocation } from "react-router-dom";
 import "../Styles/MainStyle.css";
 import Tabs from "../Components/TabsHeader";
 
-const formatNumber = (num: number): string => {
-  return new Intl.NumberFormat('en-US').format(num);
-};
+const formatNumber = (num: number): string => new Intl.NumberFormat('en-US').format(num);
 
 interface Photo {
   id: string;
@@ -15,10 +13,7 @@ interface Photo {
   height: number;
   urls: { regular: string };
   color: string | null;
-  user: {
-    username: string;
-    name: string;
-  };
+  user: { username: string; name: string };
   views?: number;
   downloads?: number;
 }
@@ -27,102 +22,149 @@ interface PhotosResponse {
   results: Photo[];
 }
 
-const api = createApi({
-  accessKey: "UsBTuhA6nSUTj8G15KlwifZNS7FzdAr_fIGK2dKs5x8",
-});
+const api = createApi({ accessKey: "hU5BrLEHWj136cGcdwjq-trh9AeIngMd2wrgzYS42bM" });
 
 const PhotoComp: React.FC<{ photo: Photo }> = ({ photo }) => {
   const { user, urls, likes, views, downloads } = photo;
 
   return (
-    <Fragment>
-      <div className="imgPostContainer">
-        <img className="img" src={urls.regular} alt={"Photo by " + user.name} />
-        <div className="photoDetails">
-          <a
-            className="credit"
-            target="_blank"
-            rel="noopener noreferrer"
-            href={`https://unsplash.com/@${user.username}`}
-          >
-            {"Photo by " + user.name}
-          </a>
-          <div className="photo-details">
+    <div className="imgPostContainer">
+      <img className="img" src={urls.regular} alt={"Photo by " + user.name} />
+      <div className="photoDetails">
+        <a className="credit" target="_blank" rel="noopener noreferrer" href={`https://unsplash.com/@${user.username}`}>
+          {"Photo by " + user.name}
+        </a>
+        <div className="photo-details">
           <div className="stats">
             <span> ❤️ {formatNumber(likes)}</span>
             {views !== undefined && <span> 👁️ {formatNumber(views)}</span>}
             {downloads !== undefined && <span> ⬇️ {formatNumber(downloads)}</span>}
-            </div>
-        </div>
+          </div>
         </div>
       </div>
-    </Fragment>
+    </div>
   );
 };
 
-const Body: FC = () => {
-  const [data, setPhotosResponse] = useState<PhotosResponse | null>(null);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [error, setError] = useState<string | null>(null);
-  const [query, setQuery] = useState<string>("moody");
-  const [searchInput, setSearchInput] = useState<string>("");
+const Main: FC = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const queryFromURL = new URLSearchParams(location.search).get("query");
 
-  const fetchPhotos = async (searchQuery: string) => {
+  const [data, setPhotosResponse] = useState<PhotosResponse>({ results: [] });
+  const [query, setQuery] = useState<string>(queryFromURL || "moody");
+  const [searchInput, setSearchInput] = useState<string>(queryFromURL || "");
+  const [page, setPage] = useState(1);
+  const [isLoading, setIsLoading] = useState(false);
+  const [apiLimited, setApiLimited] = useState(false);
+
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  const lastPhotoRef = useRef<HTMLLIElement | null>(null);
+
+  useEffect(() => {
+    setPage(1);
+    setApiLimited(false);
+    setPhotosResponse({ results: [] });
+    fetchPhotos(query, 1);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query]);
+
+  useEffect(() => {
+    if (apiLimited || isLoading) return;
+
+    observerRef.current = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) {
+        setPage((prev) => prev + 1);
+      }
+    });
+
+    if (lastPhotoRef.current) {
+      observerRef.current.observe(lastPhotoRef.current);
+    }
+
+    return () => observerRef.current?.disconnect();
+  }, [isLoading, apiLimited]);
+
+  const fetchPhotos = async (searchQuery: string, pageNumber: number) => {
+    if (apiLimited) return;
+    setIsLoading(true);
+
     try {
-      const result = await api.search.getPhotos({ query: searchQuery, orientation: "landscape" });
+      const result = await api.search.getPhotos({ query: searchQuery, orientation: "landscape", page: pageNumber });
+
       if (result.errors) {
-        setError(result.errors[0]);
-      } else if (result.response) {
+        setApiLimited(true);
+        setPhotosResponse((prev) => ({
+          results: [
+            ...prev.results,
+            {
+              id: "placeholder-403",
+              likes: 0,
+              width: 600,
+              height: 400,
+              urls: { regular: `https://placehold.co/800/251e1e/white?text=Error+403+Unsplash+API+Limited&font=Playfair Display` },
+              color: null,
+              user: { username: "placeholder_user", name: "Placeholder User" },
+              views: 0,
+              downloads: 0,
+            },
+          ],
+        }));
+        return;
+      }
+
+      if (result.response) {
         const photosWithStats = await Promise.all(
           result.response.results.map(async (photo) => {
             const stats = await api.photos.getStats({ photoId: photo.id });
             if (stats.type === "success") {
-              return {
-                ...photo,
-                views: stats.response.views.total,
-                downloads: stats.response.downloads.total,
-              };
+              return { ...photo, views: stats.response.views.total, downloads: stats.response.downloads.total };
             }
             return photo;
           })
         );
-        setPhotosResponse({ results: photosWithStats });
+
+        setPhotosResponse((prev) => ({
+          results: [...prev.results, ...photosWithStats],
+        }));
       }
     } catch (err) {
       console.error("API request failed:", err);
-      setError(null);
-      setPhotosResponse({
-        results: Array.from({ length: 10 }).map((_, index) => ({
-          id: `placeholder-${index}`,
-          likes: 0,
-          width: 600,
-          height: 400,
-          urls: { regular: `https://placehold.co/800/251e1e/white?text=Error+403+Unsplash+API+Limited&font=Playfair Display` },
-          color: null,
-          user: {
-            username: "placeholder_user",
-            name: "Placeholder User",
+      setApiLimited(true);
+      setPhotosResponse((prev) => ({
+        results: [
+          ...prev.results,
+          {
+            id: "placeholder-403",
+            likes: 0,
+            width: 600,
+            height: 400,
+            urls: { regular: `https://placehold.co/800/251e1e/white?text=Error+403+Unsplash+API+Limited&font=Playfair Display` },
+            color: null,
+            user: { username: "placeholder_user", name: "Placeholder User" },
+            views: 0,
+            downloads: 0,
           },
-          views: 0,
-          downloads: 0,
-        })),
-      });
+        ],
+      }));
+    } finally {
+      setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchPhotos(query);
-  }, [query]);
+    if (page > 1) {
+      fetchPhotos(query, page);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page]);
 
   const handleSearch = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      setQuery(searchInput);
+    if (e.key === "Enter" && searchInput.trim()) {
+      navigate(`/?query=${searchInput.trim()}`);
+      setQuery(searchInput.trim());
     }
   };
-
-  if (!data) {
-    return <div>Loading...</div>;
-  }
 
   return (
     <div className="feed">
@@ -135,12 +177,14 @@ const Body: FC = () => {
         className="search-input"
       />
       <ul className="columnUl">
-        {data.results.map((photo) => (
-          <li key={photo.id} className="li">
+        {data.results.map((photo, index) => (
+          <li key={photo.id} className="li" ref={index === data.results.length - 1 ? lastPhotoRef : null}>
             <PhotoComp photo={photo} />
           </li>
         ))}
       </ul>
+      {isLoading && <div>Loading more images...</div>}
+      {apiLimited && <div>API limit reached. No more images can be loaded.</div>}
     </div>
   );
 };
@@ -149,17 +193,9 @@ const Home: FC = () => {
   return (
     <main className="root">
       <Tabs />
-      <Body />
+      <Main />
     </main>
   );
 };
-
-const rootElement = document.getElementById("root");
-if (rootElement) {
-  const root = createRoot(rootElement);
-  root.render(<Home />);
-} else {
-  console.error("No root element found in HTML. Make sure to add <div id='root'></div> in your HTML file.");
-}
 
 export default Home;

@@ -1,9 +1,9 @@
 import HomePage from "./Pages/MainPage"
-import WelcomePage from "./Pages/WelcomePage"
+import HistoryPage from "./Pages/HistoryPage"
 
 const routers = [
     {
-        element: <WelcomePage/>,
+        element: <HomePage/>,
         path: '/',
         exact: true
     },
@@ -12,8 +12,8 @@ const routers = [
         path: '/home',
     },
     {
-        element: <WelcomePage/>,
-        path: '/welcome'
+        element: <HistoryPage/>,
+        path: '/history'
     }
 ]
 

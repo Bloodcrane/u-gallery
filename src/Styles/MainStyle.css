@@ -3,6 +3,40 @@
   src: url("./Fonts/Inter-Medium.otf");
 }
 
+h1 {
+  text-align: center;
+}
+
+.history-list {
+  font-size: 25px;
+  list-style: none;
+  text-decoration: none;
+  border-style: none;
+  border-radius: 10px;
+  outline: 1px solid #ffffff17;
+  backdrop-filter: blur(20px);
+  background-color: #18181877;
+  padding: 25px;
+  margin: 5px auto;
+  width: fit-content;
+}
+
+.history-list li {
+  color: #c0c0c0;
+  cursor: pointer;
+  margin: 10px 0;
+  text-align: left;
+  padding: 5px 10px;
+  transition: all 0.3s;
+}
+
+.history-list li:hover {
+  color: #fff;
+  font-size: 27px;
+  transition: all 0.3s;
+}
+
+
 body {
   color: #fff;
   background-image: radial-gradient(circle, rgb(34, 24, 21) 0%,rgb(19, 19, 19) 100%);
@@ -39,7 +73,7 @@ body {
   border-style: none;
   border-radius: 10px;
   position: sticky;
-  top: 7.4em;
+  top: 7.1em;
   margin-bottom: 20px;
   padding: 1rem;
   max-width: 350px;
