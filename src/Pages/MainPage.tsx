@@ -22,7 +22,7 @@ interface PhotosResponse {
   results: Photo[];
 }
 
-const api = createApi({ accessKey: "hU5BrLEHWj136cGcdwjq-trh9AeIngMd2wrgzYS42bM" });
+const api = createApi({ accessKey: "_TfSGps8TbKyFhdW-5VrcF2KGBCPxl2k7xZCqlQRfpQ" });
 
 const PhotoComp: React.FC<{ photo: Photo }> = ({ photo }) => {
   const { user, urls, likes, views, downloads } = photo;
@@ -42,6 +42,47 @@ const PhotoComp: React.FC<{ photo: Photo }> = ({ photo }) => {
           </div>
         </div>
       </div>
+    </div>
+  );
+};
+
+const Top: FC = () => {
+  const [topPhotos, setTopPhotos] = useState<Photo[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [apiLimited, setApiLimited] = useState(false);
+
+  useEffect(() => {
+    const fetchPopularPhotos = async () => {
+      setIsLoading(true);
+      try {
+        const result = await api.photos.list({ page: 1, perPage: 20 });
+
+        if (result.response) {
+          setTopPhotos(result.response.results);
+        }
+      } catch (error) {
+        console.error("Error fetching popular photos:", error);
+        setApiLimited(true);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchPopularPhotos();
+  }, []);
+
+  return (
+    <div>
+      <h1>Top 20 Images</h1>
+      {isLoading && <div>Loading popular images...</div>}
+      {apiLimited && <div>API limit reached. No popular images available.</div>}
+      <ul className="topPhotosGrid">
+        {topPhotos.map((photo) => (
+          <li key={photo.id} className="topPhotoItem">
+            <PhotoComp photo={photo} />
+          </li>
+        ))}
+      </ul>
     </div>
   );
 };
@@ -193,6 +234,7 @@ const Home: FC = () => {
   return (
     <main className="root">
       <Tabs />
+      <Top />
       <Main />
     </main>
   );

@@ -66,6 +66,7 @@ body {
 }
 
 .search-input {
+  margin-top: 10px;
   outline: 1px solid #ffffff17;
   backdrop-filter: blur(20px);
   background-color: #18181877;
@@ -86,6 +87,31 @@ input, select, textarea {
   font-size: 1rem;
   width: 100%;
 }
+
+.topPhotosGrid {
+  list-style-type: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 20px;
+  justify-items: center;
+  padding: 10px;
+}
+
+.topPhotosGrid img {
+  width: 200px;
+  height: 200px;
+  object-fit: cover;
+  border-radius: 8px;
+  transition: transform 0.2s ease-in-out;
+}
+
+.topPhotosGrid img:hover {
+  transform: scale(1.05);
+}
+
 
 .columnUl {
   list-style-type: none;
@@ -109,6 +135,10 @@ input, select, textarea {
 @media (min-width: 480px) {
   .li {
       flex: 1 1 calc(100% - 2rem);
+  }
+
+  .topPhotosGrid img {
+    width: 300px;
   }
 }
 
