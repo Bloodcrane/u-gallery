@@ -80,9 +80,19 @@ const Lightbox: React.FC<{
   photo: Photo | null;
   onClose: () => void;
 }> = ({ photo, onClose }) => {
+  const [isLoaded, setIsLoaded] = useState(false);
+  const startLoadTime = useRef<number>(0);
+
   const handleBackdropClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) onClose();
   };
+
+  useEffect(() => {
+    if (photo) {
+      setIsLoaded(false);
+      startLoadTime.current = Date.now();
+    }
+  }, [photo]);
 
   React.useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -97,6 +107,14 @@ const Lightbox: React.FC<{
   const imageUrl = photo.urls.full ?? photo.urls.regular;
   const { user } = photo;
 
+  const handleImageLoad = () => {
+    const elapsed = Date.now() - startLoadTime.current;
+    // If it loaded super fast (cached), show immediately suitable, otherwise ensure a minimal delay for smoothness if desired,
+    // but for "cool" factor, showing immediately upon load is usually best unless we want to force the animation.
+    // We'll let the CSS transition handle the smoothness.
+    setIsLoaded(true);
+  };
+
   return (
     <div
       className="lightbox-backdrop"
@@ -107,13 +125,44 @@ const Lightbox: React.FC<{
     >
       <button type="button" className="lightbox-close" onClick={onClose} aria-label="Close" />
       <div className="lightbox-content">
-        <img src={imageUrl} alt={"Photo by " + user.name} className="lightbox-img" />
+        <div className="lightbox-img-wrapper">
+          {!isLoaded && <div className="image-loader" />}
+
+          {(photo.likes !== undefined || photo.views !== undefined || photo.downloads !== undefined) && (
+            <div className="lightbox-stats">
+              <div className="stat-item">
+                <span className="stat-label">Likes</span>
+                <span className="stat-value">{formatNumber(photo.likes)}</span>
+              </div>
+              {photo.views !== undefined && (
+                <div className="stat-item">
+                  <span className="stat-label">Views</span>
+                  <span className="stat-value">{formatNumber(photo.views)}</span>
+                </div>
+              )}
+              {photo.downloads !== undefined && (
+                <div className="stat-item">
+                  <span className="stat-label">Downloads</span>
+                  <span className="stat-value">{formatNumber(photo.downloads)}</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          <img
+            src={imageUrl}
+            alt={"Photo by " + user.name}
+            className={`lightbox-img ${isLoaded ? "loaded" : ""}`}
+            onLoad={handleImageLoad}
+          />
+        </div>
         <a
           className="lightbox-credit"
           target="_blank"
           rel="noopener noreferrer"
           href={`https://unsplash.com/@${user.username}`}
           onClick={(e) => e.stopPropagation()}
+          style={{ opacity: isLoaded ? 1 : 0, transition: "opacity 0.5s 0.2s" }}
         >
           Photo by {user.name}
         </a>
@@ -191,7 +240,7 @@ const Main: FC<{ onPhotoView?: (p: Photo) => void }> = ({ onPhotoView }) => {
     setApiLimited(false);
     setPhotosResponse({ results: [] });
     fetchPhotos(query, 1);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query]);
 
   useEffect(() => {
@@ -290,7 +339,7 @@ const Main: FC<{ onPhotoView?: (p: Photo) => void }> = ({ onPhotoView }) => {
     if (page > 1) {
       fetchPhotos(query, page);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page]);
 
   const handleSearch = (e: React.KeyboardEvent<HTMLInputElement>) => {
