@@ -108,7 +108,6 @@ const Lightbox: React.FC<{
   const { user } = photo;
 
   const handleImageLoad = () => {
-    const elapsed = Date.now() - startLoadTime.current;
     // If it loaded super fast (cached), show immediately suitable, otherwise ensure a minimal delay for smoothness if desired,
     // but for "cool" factor, showing immediately upon load is usually best unless we want to force the animation.
     // We'll let the CSS transition handle the smoothness.
