@@ -22,7 +22,7 @@ interface PhotosResponse {
   results: Photo[];
 }
 
-const api = createApi({ accessKey: "_TfSGps8TbKyFhdW-5VrcF2KGBCPxl2k7xZCqlQRfpQ" });
+const api = createApi({ accessKey: process.env.REACT_APP_UNSPLASH_ACCESS_KEY || "" });
 
 const PhotoComp: React.FC<{ photo: Photo; onView?: (p: Photo) => void }> = ({ photo, onView }) => {
   const { user, urls, likes, views, downloads } = photo;
