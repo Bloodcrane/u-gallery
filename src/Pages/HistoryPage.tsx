@@ -18,13 +18,18 @@ const History: React.FC = () => {
       {history.length > 0 ? (
         <ul className="history-list">
           {history.map((term: string, index: number) => (
-            <li key={index} onClick={() => handleSearchClick(term)}>
-              🔍 {term}
+            <li
+              key={index}
+              onClick={() => handleSearchClick(term)}
+              style={{ animationDelay: `${index * 0.06}s` }}
+              className="history-item"
+            >
+              {term}
             </li>
           ))}
         </ul>
       ) : (
-        <p>No search history yet.</p>
+        <p className="history-empty">No search history yet.</p>
       )}
     </div>
   );

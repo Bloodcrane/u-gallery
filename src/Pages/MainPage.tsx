@@ -11,7 +11,7 @@ interface Photo {
   likes: number;
   width: number;
   height: number;
-  urls: { regular: string };
+  urls: { regular: string; full?: string };
   color: string | null;
   user: { username: string; name: string };
   views?: number;
@@ -24,29 +24,105 @@ interface PhotosResponse {
 
 const api = createApi({ accessKey: "_TfSGps8TbKyFhdW-5VrcF2KGBCPxl2k7xZCqlQRfpQ" });
 
-const PhotoComp: React.FC<{ photo: Photo }> = ({ photo }) => {
+const PhotoComp: React.FC<{ photo: Photo; onView?: (p: Photo) => void }> = ({ photo, onView }) => {
   const { user, urls, likes, views, downloads } = photo;
 
+  const handleClick = () => onView?.(photo);
+
   return (
-    <div className="imgPostContainer">
+    <div
+      className="imgPostContainer"
+      onClick={handleClick}
+      onKeyDown={(e) => e.key === "Enter" && handleClick()}
+      role="button"
+      tabIndex={0}
+      aria-label={`View photo by ${user.name}`}
+    >
       <img className="img" src={urls.regular} alt={"Photo by " + user.name} />
+      <div className="viewIndicator" aria-hidden="true">
+        <span className="viewIndicatorIcon" />
+        <span>View</span>
+      </div>
       <div className="photoDetails">
-        <a className="credit" target="_blank" rel="noopener noreferrer" href={`https://unsplash.com/@${user.username}`}>
-          {"Photo by " + user.name}
+        <a
+          className="credit"
+          target="_blank"
+          rel="noopener noreferrer"
+          href={`https://unsplash.com/@${user.username}`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          Photo by {user.name}
         </a>
-        <div className="photo-details">
-          <div className="stats">
-            <span> ❤️ {formatNumber(likes)}</span>
-            {views !== undefined && <span> 👁️ {formatNumber(views)}</span>}
-            {downloads !== undefined && <span> ⬇️ {formatNumber(downloads)}</span>}
+        <div className="photo-stats-bar">
+          <div className="stat-item">
+            <span className="stat-label">Likes</span>
+            <span className="stat-value">{formatNumber(likes)}</span>
           </div>
+          {views !== undefined && (
+            <div className="stat-item">
+              <span className="stat-label">Views</span>
+              <span className="stat-value">{formatNumber(views)}</span>
+            </div>
+          )}
+          {downloads !== undefined && (
+            <div className="stat-item">
+              <span className="stat-label">Downloads</span>
+              <span className="stat-value">{formatNumber(downloads)}</span>
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
 };
 
-const Top: FC = () => {
+const Lightbox: React.FC<{
+  photo: Photo | null;
+  onClose: () => void;
+}> = ({ photo, onClose }) => {
+  const handleBackdropClick = (e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) onClose();
+  };
+
+  React.useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [onClose]);
+
+  if (!photo) return null;
+
+  const imageUrl = photo.urls.full ?? photo.urls.regular;
+  const { user } = photo;
+
+  return (
+    <div
+      className="lightbox-backdrop"
+      onClick={handleBackdropClick}
+      role="dialog"
+      aria-modal="true"
+      aria-label="View full size image"
+    >
+      <button type="button" className="lightbox-close" onClick={onClose} aria-label="Close" />
+      <div className="lightbox-content">
+        <img src={imageUrl} alt={"Photo by " + user.name} className="lightbox-img" />
+        <a
+          className="lightbox-credit"
+          target="_blank"
+          rel="noopener noreferrer"
+          href={`https://unsplash.com/@${user.username}`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          Photo by {user.name}
+        </a>
+      </div>
+    </div>
+  );
+};
+
+const Top: FC<{ onPhotoView?: (p: Photo) => void }> = ({ onPhotoView }) => {
   const [topPhotos, setTopPhotos] = useState<Photo[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [apiLimited, setApiLimited] = useState(false);
@@ -72,14 +148,22 @@ const Top: FC = () => {
   }, []);
 
   return (
-    <div>
+    <div className="top-section">
       <h1>Top 20 Images</h1>
-      {isLoading && <div>Loading popular images...</div>}
-      {apiLimited && <div>API limit reached. No popular images available.</div>}
+      {isLoading && (
+        <div className="loading-dots" aria-label="Loading">
+          <span /><span /><span />
+        </div>
+      )}
+      {apiLimited && <div className="api-message">API limit reached. No popular images available.</div>}
       <ul className="topPhotosGrid">
-        {topPhotos.map((photo) => (
-          <li key={photo.id} className="topPhotoItem">
-            <PhotoComp photo={photo} />
+        {topPhotos.map((photo, index) => (
+          <li
+            key={photo.id}
+            className="topPhotoItem"
+            style={{ animationDelay: `${index * 0.05}s` }}
+          >
+            <PhotoComp photo={photo} onView={onPhotoView} />
           </li>
         ))}
       </ul>
@@ -87,7 +171,7 @@ const Top: FC = () => {
   );
 };
 
-const Main: FC = () => {
+const Main: FC<{ onPhotoView?: (p: Photo) => void }> = ({ onPhotoView }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const queryFromURL = new URLSearchParams(location.search).get("query");
@@ -220,31 +304,43 @@ const Main: FC = () => {
     <div className="feed">
       <input
         type="text"
-        placeholder="🔍 Search photos..."
+        placeholder="Search photos..."
         value={searchInput}
         onChange={(e) => setSearchInput(e.target.value)}
         onKeyPress={handleSearch}
         className="search-input"
+        aria-label="Search Unsplash photos"
       />
       <ul className="columnUl">
         {data.results.map((photo, index) => (
-          <li key={photo.id} className="li" ref={index === data.results.length - 1 ? lastPhotoRef : null}>
-            <PhotoComp photo={photo} />
+          <li
+            key={photo.id}
+            className="li"
+            ref={index === data.results.length - 1 ? lastPhotoRef : null}
+            style={{ animationDelay: `${Math.min(index * 0.04, 0.8)}s` }}
+          >
+            <PhotoComp photo={photo} onView={onPhotoView} />
           </li>
         ))}
       </ul>
-      {isLoading && <div>Loading more images...</div>}
-      {apiLimited && <div>API limit reached. No more images can be loaded.</div>}
+      {isLoading && (
+        <div className="loading-dots" aria-label="Loading more">
+          <span /><span /><span />
+        </div>
+      )}
+      {apiLimited && <div className="api-message">API limit reached. No more images can be loaded.</div>}
     </div>
   );
 };
 
 const Home: FC = () => {
+  const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null);
   return (
     <main className="root">
+      <Lightbox photo={selectedPhoto} onClose={() => setSelectedPhoto(null)} />
       <Tabs />
-      <Top />
-      <Main />
+      <Top onPhotoView={setSelectedPhoto} />
+      <Main onPhotoView={setSelectedPhoto} />
     </main>
   );
 };
